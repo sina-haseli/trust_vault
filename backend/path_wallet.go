@@ -45,9 +45,26 @@ func (b *TrustVaultBackend) pathWalletCreate() *framework.Path {
 				Summary:  "Create a new cryptocurrency wallet",
 			},
 		},
+		ExistenceCheck:  b.handleWalletExistenceCheck,
 		HelpSynopsis:    "Create a new cryptocurrency wallet for the specified blockchain",
 		HelpDescription: "Creates a new HD wallet using Trust Wallet Core. If a mnemonic is provided, it imports the wallet; otherwise, it generates a new one.",
 	}
+}
+
+// handleWalletExistenceCheck checks if a wallet exists
+func (b *TrustVaultBackend) handleWalletExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
+	name := data.Get("name").(string)
+	if name == "" {
+		return false, nil
+	}
+
+	// Check if wallet exists in storage
+	wallet, err := b.walletService.GetWallet(ctx, name)
+	if err != nil {
+		return false, nil
+	}
+
+	return wallet != nil, nil
 }
 
 // handleWalletCreate handles wallet creation requests

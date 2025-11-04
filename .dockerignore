@@ -1,5 +1,7 @@
-# Build artifacts
-bin/
+# Build artifacts (but allow plugin binary for Dockerfile)
+bin/*
+!bin/trust-vault-plugin
+!bin/trust-vault-plugin.sha256
 *.exe
 *.dll
 *.so

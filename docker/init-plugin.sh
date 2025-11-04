@@ -21,9 +21,9 @@ if ! vault status &> /dev/null; then
     # Initialize Vault
     INIT_OUTPUT=$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
     
-    # Extract keys and token
-    UNSEAL_KEY=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
-    ROOT_TOKEN=$(echo "$INIT_OUTPUT" | jq -r '.root_token')
+    # Extract keys and token (using awk instead of jq)
+    UNSEAL_KEY=$(echo "$INIT_OUTPUT" | awk -F'"' '/unseal_keys_b64/ {getline; getline; print $2}')
+    ROOT_TOKEN=$(echo "$INIT_OUTPUT" | awk -F'"' '/root_token/ {print $4}')
     
     # Save to file
     echo "$INIT_OUTPUT" > /vault/data/init-keys.json
