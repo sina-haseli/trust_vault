@@ -41,13 +41,13 @@ type Wallet struct {
 
 // encryptedWallet is the internal representation with encrypted sensitive fields
 type encryptedWallet struct {
-	Name              string    `json:"name"`
-	CoinType          uint32    `json:"coin_type"`
-	MnemonicEncrypted string    `json:"mnemonic_encrypted"`
-	PrivateKeyEncrypted string  `json:"private_key_encrypted"`
-	PublicKey         string    `json:"public_key"`
-	Address           string    `json:"address"`
-	CreatedAt         time.Time `json:"created_at"`
+	Name                string    `json:"name"`
+	CoinType            uint32    `json:"coin_type"`
+	MnemonicEncrypted   string    `json:"mnemonic_encrypted"`
+	PrivateKeyEncrypted string    `json:"private_key_encrypted"`
+	PublicKey           string    `json:"public_key"`
+	Address             string    `json:"address"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // StorageService handles encrypted storage of wallet data
@@ -348,7 +348,7 @@ func (ss *StorageService) ListWalletsWithMetadata(ctx context.Context, offset, l
 	for _, name := range names {
 		// Remove trailing slash if present
 		name = strings.TrimSuffix(name, "/")
-		
+
 		wallet, err := ss.GetWalletMetadata(ctx, name)
 		if err != nil {
 			// Skip wallets that can't be read

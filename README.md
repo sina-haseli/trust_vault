@@ -39,13 +39,24 @@ For a complete list of supported networks, see the [Trust Wallet Core documentat
 
 ## Building
 
+### Using Docker (Recommended)
+
+Build with Trust Wallet Core from source:
+
+```bash
+# Build using Dockerfile.build (includes Trust Wallet Core)
+make docker-build-build
+```
+
+The binary will be created at `bin/trust-vault-plugin`.
+
 ### Using Make
 
 ```bash
-# Build the plugin
+# Build the plugin (requires Trust Wallet Core installed locally)
 make build
 
-# Build for multiple platforms
+# Build for multiple platforms (Linux and macOS)
 make build-all
 
 # Run tests
@@ -56,6 +67,20 @@ make test-coverage
 
 # Calculate SHA256 checksum
 make checksum
+```
+
+### Testing in Docker
+
+Test your code without installing Trust Wallet Core locally:
+
+```bash
+# Start interactive development container
+make docker-dev
+
+# Inside container, test your code:
+go build ./wallet
+go test ./...
+# Create test files as needed
 ```
 
 ### Using build script

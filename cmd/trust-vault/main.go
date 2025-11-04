@@ -12,7 +12,7 @@ import (
 func main() {
 	// Create API client metadata for plugin configuration
 	apiClientMeta := &api.PluginAPIClientMeta{}
-	
+
 	// Set up command-line flags for plugin configuration
 	flags := apiClientMeta.FlagSet()
 	if err := flags.Parse(os.Args[1:]); err != nil {

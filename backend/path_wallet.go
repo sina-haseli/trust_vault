@@ -53,7 +53,7 @@ func (b *TrustVaultBackend) pathWalletCreate() *framework.Path {
 // handleWalletCreate handles wallet creation requests
 func (b *TrustVaultBackend) handleWalletCreate(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	name := data.Get("name").(string)
-	
+
 	// Validate wallet name
 	if err := validateWalletName(name); err != nil {
 		b.logger.Warn("invalid wallet name provided", "error", err)
@@ -74,7 +74,7 @@ func (b *TrustVaultBackend) handleWalletCreate(ctx context.Context, req *logical
 	}
 
 	mnemonic := data.Get("mnemonic").(string)
-	
+
 	// Log operation (without sensitive data)
 	if mnemonic != "" {
 		b.logger.Info("importing wallet", "name", sanitizeWalletName(name), "coin_type", coinType)
@@ -129,7 +129,7 @@ func (b *TrustVaultBackend) pathWalletRead() *framework.Path {
 // handleWalletRead handles wallet read requests
 func (b *TrustVaultBackend) handleWalletRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	name := data.Get("name").(string)
-	
+
 	// Validate wallet name
 	if err := validateWalletName(name); err != nil {
 		b.logger.Warn("invalid wallet name provided for read", "error", err)
@@ -185,7 +185,7 @@ func (b *TrustVaultBackend) pathWalletDelete() *framework.Path {
 // handleWalletDelete handles wallet deletion requests
 func (b *TrustVaultBackend) handleWalletDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	name := data.Get("name").(string)
-	
+
 	// Validate wallet name
 	if err := validateWalletName(name); err != nil {
 		b.logger.Warn("invalid wallet name provided for deletion", "error", err)
@@ -299,7 +299,7 @@ func (b *TrustVaultBackend) pathWalletSign() *framework.Path {
 // handleWalletSign handles transaction signing requests
 func (b *TrustVaultBackend) handleWalletSign(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	name := data.Get("name").(string)
-	
+
 	// Validate wallet name
 	if err := validateWalletName(name); err != nil {
 		b.logger.Warn("invalid wallet name provided for signing", "error", err)
@@ -386,7 +386,7 @@ func (b *TrustVaultBackend) pathWalletAddress() *framework.Path {
 // handleWalletAddress handles address derivation requests
 func (b *TrustVaultBackend) handleWalletAddress(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	name := data.Get("name").(string)
-	
+
 	// Validate wallet name
 	if err := validateWalletName(name); err != nil {
 		b.logger.Warn("invalid wallet name provided for address derivation", "error", err)
@@ -413,7 +413,7 @@ func (b *TrustVaultBackend) handleWalletAddress(ctx context.Context, req *logica
 	}
 
 	derivationPath := data.Get("derivation_path").(string)
-	
+
 	// Validate derivation path if provided
 	if derivationPath != "" {
 		if err := validateDerivationPath(derivationPath); err != nil {

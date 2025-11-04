@@ -49,9 +49,6 @@ case "$ARCH" in
 esac
 
 OUTPUT_FILE="$BUILD_DIR/$PLUGIN_NAME"
-if [ "$OS" = "windows" ]; then
-    OUTPUT_FILE="$OUTPUT_FILE.exe"
-fi
 
 echo -e "${YELLOW}Building for $OS/$ARCH...${NC}"
 

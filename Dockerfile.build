@@ -47,7 +47,7 @@ COPY third_party/wallet-core /build/wallet-core
 
 # Build Trust Wallet Core using proper build process
 WORKDIR /build/wallet-core
-# Fix line endings (Windows to Unix) for all scripts and make them executable
+# Fix line endings for all scripts and make them executable
 # Ensure cbindgen is in PATH for rust-bindgen script
 RUN set -e && \
     echo "Fixing line endings..." && \
@@ -65,7 +65,7 @@ RUN set -e && \
     -DCMAKE_C_COMPILER=clang-14 \
     -GNinja && \
     echo "Building Trust Wallet Core..." && \
-    cmake --build build --parallel 4 TrustWalletCore
+    cmake --build build --parallel 4 --target TrustWalletCore
 
 # Stage 2: Build the Go plugin
 FROM ubuntu:22.04
@@ -77,6 +77,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     wget \
     build-essential \
+    clang-14 \
+    llvm-14 \
     libc++-dev \
     libc++abi-dev \
     libboost-all-dev \
@@ -84,9 +86,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go (using latest stable version, 1.23.x)
-RUN wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz && \
-    rm go1.23.4.linux-amd64.tar.gz
+# Detect architecture and download appropriate Go binary
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then \
+        GO_ARCH="amd64"; \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+        GO_ARCH="arm64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    wget https://go.dev/dl/go1.23.4.linux-${GO_ARCH}.tar.gz && \
+    tar -C /usr/local -xzf go1.23.4.linux-${GO_ARCH}.tar.gz && \
+    rm go1.23.4.linux-${GO_ARCH}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOROOT="/usr/local/go"
@@ -96,8 +107,10 @@ COPY --from=wallet-core-builder /build/wallet-core/build/libTrustWalletCore.a /u
 COPY --from=wallet-core-builder /build/wallet-core/build/trezor-crypto/libTrezorCrypto.a /usr/local/lib/
 # Copy Rust library (required for Trust Wallet Core)
 COPY --from=wallet-core-builder /build/wallet-core/rust/target/release/libwallet_core_rs.a /usr/local/lib/
-# Copy protobuf library (installed by install-dependencies script)
-COPY --from=wallet-core-builder /build/wallet-core/build/local/lib/libprotobuf-lite.a /usr/local/lib/
+# Copy protobuf libraries (installed by install-dependencies script)
+# Trust Wallet Core needs the full protobuf library (libprotobuf.a), not just lite
+# Copy the entire lib directory to get all protobuf libraries
+COPY --from=wallet-core-builder /build/wallet-core/build/local/lib/libprotobuf*.a /usr/local/lib/
 COPY --from=wallet-core-builder /build/wallet-core/include /usr/local/include
 COPY --from=wallet-core-builder /build/wallet-core/build/local/include /usr/local/include
 
@@ -111,12 +124,22 @@ RUN go mod download
 # Copy the rest of the project
 COPY . .
 
-# Set environment variables for CGO
+# Set environment variables for CGO (use Clang for Trust Wallet Core compatibility)
+# Note: Use libstdc++ to match the libraries built in Stage 1
 ENV CGO_ENABLED=1
-ENV CC=gcc
-ENV CXX=g++
+ENV CC=clang-14
+ENV CXX=clang++-14
 ENV CGO_CFLAGS="-I/usr/local/include"
-ENV CGO_LDFLAGS="-L/usr/local/lib -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf-lite -lc++ -lc++abi -lm -lpthread"
+ENV CGO_LDFLAGS="-L/usr/local/lib -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf -lstdc++ -lm -lpthread"
 
 # Build the plugin
-CMD ["go", "build", "-o", "trust-vault-plugin", "cmd/trust-vault/main.go"]
+RUN go build -o trust-vault-plugin cmd/trust-vault/main.go
+
+# Verify the binary was created
+RUN test -f trust-vault-plugin || (echo "Build failed: binary not found" && exit 1)
+RUN ls -lh trust-vault-plugin
+
+# Test wallet package compilation
+RUN echo "Testing wallet package..." && \
+    go build ./wallet && \
+    echo "✓ wallet package compiles successfully"

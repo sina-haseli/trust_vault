@@ -14,8 +14,7 @@ package wallet
 //   3. Install libraries to /usr/local/lib
 
 // #cgo CFLAGS: -I${SRCDIR}/../../third_party/wallet-core/include -I/usr/local/include
-// #cgo !windows LDFLAGS: -L/usr/local/lib -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf-lite -lc++ -lc++abi -lm -lpthread
-// #cgo windows LDFLAGS: -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf-lite -lc++ -lc++abi -lm -lpthread
+// #cgo LDFLAGS: -L/usr/local/lib -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf -lstdc++ -lm -lpthread
 // #include <TrustWalletCore/TWHDWallet.h>
 // #include <TrustWalletCore/TWPrivateKey.h>
 // #include <TrustWalletCore/TWPublicKey.h>
@@ -24,6 +23,7 @@ package wallet
 // #include <TrustWalletCore/TWAnyAddress.h>
 // #include <TrustWalletCore/TWString.h>
 // #include <TrustWalletCore/TWData.h>
+// #include <TrustWalletCore/TWMnemonic.h>
 // #include <stdlib.h>
 import "C"
 
@@ -151,7 +151,7 @@ func (twc *TrustWalletCore) ImportWallet(mnemonic string, coinType uint32) (*Wal
 	mnemonicTW := C.TWStringCreateWithUTF8Bytes(C.CString(mnemonic))
 	defer C.TWStringDelete(mnemonicTW)
 
-	if !C.TWHDWalletIsValid(mnemonicTW) {
+	if !C.TWMnemonicIsValid(mnemonicTW) {
 		return nil, fmt.Errorf("%w: mnemonic validation failed", ErrInvalidMnemonic)
 	}
 
@@ -226,7 +226,7 @@ func (twc *TrustWalletCore) DeriveAddress(mnemonic string, coinType uint32, deri
 	mnemonicTW := C.TWStringCreateWithUTF8Bytes(C.CString(mnemonic))
 	defer C.TWStringDelete(mnemonicTW)
 
-	if !C.TWHDWalletIsValid(mnemonicTW) {
+	if !C.TWMnemonicIsValid(mnemonicTW) {
 		return "", fmt.Errorf("%w: mnemonic validation failed", ErrInvalidMnemonic)
 	}
 

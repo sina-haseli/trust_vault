@@ -21,7 +21,7 @@ build:
 	$(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(PLUGIN_BINARY) ./cmd/trust-vault
 	@echo "Build complete: $(BUILD_DIR)/$(PLUGIN_BINARY)"
 
-# Build for multiple platforms
+# Build for multiple platforms (Linux and macOS only)
 .PHONY: build-all
 build-all:
 	@echo "Building for multiple platforms..."
@@ -30,8 +30,7 @@ build-all:
 	GOOS=linux GOARCH=arm64 $(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(PLUGIN_BINARY)-linux-arm64 ./cmd/trust-vault
 	GOOS=darwin GOARCH=amd64 $(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(PLUGIN_BINARY)-darwin-amd64 ./cmd/trust-vault
 	GOOS=darwin GOARCH=arm64 $(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(PLUGIN_BINARY)-darwin-arm64 ./cmd/trust-vault
-	GOOS=windows GOARCH=amd64 $(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(PLUGIN_BINARY)-windows-amd64.exe ./cmd/trust-vault
-	@echo "Multi-platform build complete"
+	@echo "Multi-platform build complete (Linux and macOS)"
 
 # Run tests
 .PHONY: test
@@ -114,12 +113,25 @@ docker-build:
 	docker build -t trust-vault:latest -f Dockerfile .
 	@echo "Docker image built: trust-vault:latest"
 
+# Build using Dockerfile.build (builds Trust Wallet Core from source)
+.PHONY: docker-build-build
+docker-build-build:
+	@echo "Building with Dockerfile.build (Trust Wallet Core from source)..."
+	@./scripts/build-docker-build.sh
+	@echo "Build complete: bin/trust-vault-plugin"
+
 # Run Docker container
 .PHONY: docker-run
 docker-run:
 	@echo "Running Docker container..."
 	docker-compose up -d
 	@echo "Docker container running"
+
+# Start development Docker container (with mounted code for testing)
+.PHONY: docker-dev
+docker-dev:
+	@echo "Starting development Docker environment..."
+	@./scripts/dev-docker.sh
 
 # Stop Docker container
 .PHONY: docker-stop
@@ -151,8 +163,10 @@ help:
 	@echo "  make lint           - Run linter"
 	@echo "  make tidy           - Tidy dependencies"
 	@echo "  make deps           - Download dependencies"
-	@echo "  make docker-build   - Build Docker image"
-	@echo "  make docker-run     - Run Docker container"
-	@echo "  make docker-stop    - Stop Docker container"
+	@echo "  make docker-build      - Build Docker image (Dockerfile)"
+	@echo "  make docker-build-build - Build using Dockerfile.build (Trust Wallet Core from source)"
+	@echo "  make docker-dev        - Start development Docker container (for testing code)"
+	@echo "  make docker-run        - Run Docker container"
+	@echo "  make docker-stop       - Stop Docker container"
 	@echo "  make dev            - Build development version with debug symbols"
 	@echo "  make help           - Show this help message"
