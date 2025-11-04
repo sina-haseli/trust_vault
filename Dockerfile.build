@@ -1,0 +1,122 @@
+# Multi-stage build for Trust Vault plugin with Trust Wallet Core
+FROM ubuntu:22.04 AS wallet-core-builder
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies for Trust Wallet Core
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    libboost-all-dev \
+    ninja-build \
+    clang-14 \
+    llvm-14 \
+    libc++-dev \
+    libc++abi-dev \
+    pkg-config \
+    libtool \
+    autoconf \
+    ruby-full \
+    wget \
+    curl \
+    ca-certificates \
+    dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set clang as default compiler
+ENV CC=clang-14
+ENV CXX=clang++-14
+
+# Install Rust (required for Trust Wallet Core)
+RUN wget "https://sh.rustup.rs" -O rustup.sh \
+    && sh rustup.sh -y \
+    && rm rustup.sh
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup default nightly-2024-06-13 || rustup default nightly
+# Update to latest nightly to get Rust 1.82+ for cbindgen compatibility
+RUN rustup update nightly && rustup default nightly
+# Install cbindgen (required for Rust bindings generation)
+RUN cargo install cbindgen --locked && \
+    /root/.cargo/bin/cbindgen --version
+
+# Copy wallet-core source
+WORKDIR /build
+COPY third_party/wallet-core /build/wallet-core
+
+# Build Trust Wallet Core using proper build process
+WORKDIR /build/wallet-core
+# Fix line endings (Windows to Unix) for all scripts and make them executable
+# Ensure cbindgen is in PATH for rust-bindgen script
+RUN set -e && \
+    echo "Fixing line endings..." && \
+    find . -type f \( -name "*.sh" -o -name "*.rb" -o -path "*/tools/*" -o -path "*/codegen/bin/*" \) ! -path "*/build/*" ! -path "*/.git/*" -exec sh -c 'dos2unix "{}" 2>/dev/null || sed -i "s/\r$//" "{}"' \; && \
+    echo "Making scripts executable..." && \
+    chmod +x tools/* codegen/bin/* 2>/dev/null || true && \
+    echo "Installing dependencies..." && \
+    bash tools/install-dependencies && \
+    echo "Generating files..." && \
+    PATH="/root/.cargo/bin:${PATH}" bash tools/generate-files native && \
+    echo "Configuring CMake..." && \
+    cmake -H. -Bbuild \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_COMPILER=clang++-14 \
+    -DCMAKE_C_COMPILER=clang-14 \
+    -GNinja && \
+    echo "Building Trust Wallet Core..." && \
+    cmake --build build --parallel 4 TrustWalletCore
+
+# Stage 2: Build the Go plugin
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies and build tools for CGO
+RUN apt-get update && apt-get install -y \
+    wget \
+    build-essential \
+    libc++-dev \
+    libc++abi-dev \
+    libboost-all-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go (using latest stable version, 1.23.x)
+RUN wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz && \
+    rm go1.23.4.linux-amd64.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOROOT="/usr/local/go"
+
+# Copy Trust Wallet Core libraries and headers from builder
+COPY --from=wallet-core-builder /build/wallet-core/build/libTrustWalletCore.a /usr/local/lib/
+COPY --from=wallet-core-builder /build/wallet-core/build/trezor-crypto/libTrezorCrypto.a /usr/local/lib/
+# Copy Rust library (required for Trust Wallet Core)
+COPY --from=wallet-core-builder /build/wallet-core/rust/target/release/libwallet_core_rs.a /usr/local/lib/
+# Copy protobuf library (installed by install-dependencies script)
+COPY --from=wallet-core-builder /build/wallet-core/build/local/lib/libprotobuf-lite.a /usr/local/lib/
+COPY --from=wallet-core-builder /build/wallet-core/include /usr/local/include
+COPY --from=wallet-core-builder /build/wallet-core/build/local/include /usr/local/include
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy go module files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the project
+COPY . .
+
+# Set environment variables for CGO
+ENV CGO_ENABLED=1
+ENV CC=gcc
+ENV CXX=g++
+ENV CGO_CFLAGS="-I/usr/local/include"
+ENV CGO_LDFLAGS="-L/usr/local/lib -lTrustWalletCore -lwallet_core_rs -lTrezorCrypto -lprotobuf-lite -lc++ -lc++abi -lm -lpthread"
+
+# Build the plugin
+CMD ["go", "build", "-o", "trust-vault-plugin", "cmd/trust-vault/main.go"]

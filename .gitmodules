@@ -1,0 +1,3 @@
+[submodule "third_party/wallet-core"]
+	path = third_party/wallet-core
+	url = https://github.com/trustwallet/wallet-core.git

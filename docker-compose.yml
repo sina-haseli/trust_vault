@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Build service for compiling the plugin
+  build:
+    build:
+      context: .
+      dockerfile: Dockerfile.build
+    volumes:
+      - .:/workspace
+      - build-cache:/go/pkg/mod
+    environment:
+      - CGO_ENABLED=1
+      - GOOS=linux
+      - GOARCH=amd64
+
+  # Vault service with Trust Vault Plugin
+  vault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trust-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/data
+      - vault-logs:/vault/logs
+    networks:
+      - vault-network
+    restart: unless-stopped
+
+volumes:
+  build-cache:
+  vault-data:
+    driver: local
+  vault-logs:
+    driver: local
+
+networks:
+  vault-network:
+    driver: bridge
